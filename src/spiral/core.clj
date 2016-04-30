@@ -6,6 +6,9 @@
 
 (defrecord VLineSeg [x y1 y2])
 
+; I'm taking advantage of the fact that we only have
+; horizontal and vertical lines, making intersection easy.
+; I'm also assuming the values are given in sorted order.
 (defn intersects? [h v]
   (and (<= (:x1 h) (:x v) (:x2 h))
        (<= (:y1 v) (:y h) (:y2 v))))
@@ -20,11 +23,15 @@
     :e (->Point (+ (:x prev-point) distance) (:y prev-point))
     :w (->Point (- (:x prev-point) distance) (:y prev-point))))
 
+; This function ensures that line segment values correctly sorted.
 (defn make-segment [direction p1 p2]
   (if (contains? #{:n :s} direction)
     (apply ->VLineSeg (:x p1) (sort (mapv :y [p1 p2])))
     (apply ->HLineSeg (:y p1) (sort (mapv :x [p1 p2])))))
 
+; Computes all of the line segments for the input.
+; Adds two dummy (zero-length) segments on the ends so that every
+; input line intersects its two neighbors.
 (defn all-segments [distances]
   (loop [segs []
          prev-point (->Point 0 0)
@@ -35,6 +42,8 @@
             new-seg (make-segment dir prev-point next-point)]
         (recur (conj segs new-seg) next-point directions distances)))))
 
+; Naive solution checks all line segments to see if the intersect
+; with more than just their two neighboring segments.
 (defn any-segs-intersect-naive? [distances]
   (let [segs (all-segments distances)
         hsegs (take-nth 2 segs)
@@ -52,6 +61,11 @@
       (intersects? seg1 seg2)
       (intersects? seg2 seg1))))
 
+; The key insight here is that the new line segment has an intersection
+; iff it intersects with the 3rd-to-last or 5th-to-last segment.
+; This means you only have to check those two segments for intersections,
+; and you only need to record the last 5 segments, giving you a constant
+; space requirement, and a constant time per input element.
 (defn any-segs-intersect? [distances]
   (loop [prev-segs nil
          prev-point (->Point 0 0)
